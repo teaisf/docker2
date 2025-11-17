@@ -1,0 +1,54 @@
+version: "3.9"
+services:
+  logto:
+    image: svhd/logto:${TAG-latest}
+    container_name: logto
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    networks:
+      - postgres
+      - logto
+    expose:
+       - "3001"
+       - "3002"
+    env_file:
+      - .env
+    volumes:
+      - ./dist:/etc/logto/packages/experience/dist
+
+  logto_auth:
+    image: alpine/socat:latest
+    command: tcp-listen:80,fork tcp:logto:3001
+    restart: unless-stopped
+    env_file:
+      - .auth.env
+    depends_on:
+      - logto
+    container_name: logto_auth
+    networks:
+      - logto
+      - nginx
+
+  logto_admin:
+    image: alpine/socat:latest
+    command: tcp-listen:80,fork tcp:logto:3002
+    restart: unless-stopped
+    env_file:
+      - .admin.env
+    depends_on:
+      - logto
+    container_name: logto_admin
+    networks:
+      - logto
+      - nginx
+
+
+networks:
+  logto:
+    driver: bridge
+  nginx:
+    external: true
+    name: nginx-proxy
+  postgres:
+    external: true
+    name: dbnet
